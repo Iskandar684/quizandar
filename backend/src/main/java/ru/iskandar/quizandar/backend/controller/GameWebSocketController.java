@@ -39,4 +39,22 @@ public class GameWebSocketController {
 	public void startGame(@DestinationVariable String roomId) {
 		gameService.startGame();
 	}
+	
+	/**
+	 * Обрабатывает команду ведущего на включение/выключение автоматического перехода.
+	 * Сообщение: /app/game/{roomId}/auto-next
+	 * Тело: { "enabled": true/false }
+	 *
+	 * @param roomId  идентификатор комнаты
+	 * @param payload данные с флагом enabled
+	 */
+	@MessageMapping("/game/{roomId}/auto-next")
+	public void setAutoNext(@DestinationVariable String roomId,
+	                        @Payload Map<String, Object> payload) {
+	    Boolean enabled = (Boolean) payload.get("enabled");
+	    if (enabled != null) {
+	        gameService.setAutoNext(enabled);
+	    }
+	}
+	
 }

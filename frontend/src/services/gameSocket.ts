@@ -1,7 +1,7 @@
-import { Client } from '@stomp/stompjs';
-import type { IMessage } from '@stomp/stompjs';
-import SockJS from 'sockjs-client';
-import type { AnswerRecord, Player, Question, ScoreMap } from '@/types/game';
+import { Client } from "@stomp/stompjs";
+import type { IMessage } from "@stomp/stompjs";
+import SockJS from "sockjs-client";
+import type { AnswerRecord, Player, Question, ScoreMap } from "@/types/game";
 
 /**
  * Сервис для работы с игровым WebSocket (STOMP).
@@ -18,18 +18,18 @@ class GameSocketService {
    * @param onConnected — колбэк, вызываемый после успешного подключения
    */
   connect(onConnected?: () => void): void {
-    const socket = new SockJS('/ws');
+    const socket = new SockJS("/ws");
     this.client = new Client({
       webSocketFactory: () => socket,
       reconnectDelay: 5000,
-      debug: (msg) => console.debug('[STOMP]', msg),
+      debug: (msg) => console.debug("[STOMP]", msg),
       onConnect: () => {
-        console.info('WebSocket connected');
+        console.info("WebSocket connected");
         onConnected?.();
       },
       onStompError: (frame) => {
-        console.error('STOMP error', frame.headers['message'], frame.body);
-      }
+        console.error("STOMP error", frame.headers["message"], frame.body);
+      },
     });
     this.client.activate();
   }
@@ -48,7 +48,9 @@ class GameSocketService {
    * @returns функция отписки
    */
   onQuestion(handler: (question: Question) => void): () => void {
-    return this.subscribe('/topic/game/question', (msg) => handler(JSON.parse(msg.body)));
+    return this.subscribe("/topic/game/question", (msg) =>
+      handler(JSON.parse(msg.body)),
+    );
   }
 
   /**
@@ -57,7 +59,9 @@ class GameSocketService {
    * @returns функция отписки
    */
   onResults(handler: (results: AnswerRecord[]) => void): () => void {
-    return this.subscribe('/topic/game/results', (msg) => handler(JSON.parse(msg.body)));
+    return this.subscribe("/topic/game/results", (msg) =>
+      handler(JSON.parse(msg.body)),
+    );
   }
 
   /**
@@ -66,7 +70,9 @@ class GameSocketService {
    * @returns функция отписки
    */
   onPlayers(handler: (players: Player[]) => void): () => void {
-    return this.subscribe('/topic/game/players', (msg) => handler(JSON.parse(msg.body)));
+    return this.subscribe("/topic/game/players", (msg) =>
+      handler(JSON.parse(msg.body)),
+    );
   }
 
   /**
@@ -75,7 +81,9 @@ class GameSocketService {
    * @returns функция отписки
    */
   onScores(handler: (scores: ScoreMap) => void): () => void {
-    return this.subscribe('/topic/game/scores', (msg) => handler(JSON.parse(msg.body)));
+    return this.subscribe("/topic/game/scores", (msg) =>
+      handler(JSON.parse(msg.body)),
+    );
   }
 
   /**
@@ -83,13 +91,15 @@ class GameSocketService {
    * @param handler — обработчик получения результата
    * @returns функция отписки
    */
- onPersonalAnswerResult(handler: (record: AnswerRecord) => void): () => void {
+  onPersonalAnswerResult(handler: (record: AnswerRecord) => void): () => void {
     if (!this.playerId) {
-      console.warn('playerId не установлен');
+      console.warn("playerId не установлен");
       return () => {};
     }
-    return this.subscribe(`/topic/game/player/${this.playerId}/result`, (msg) => handler(JSON.parse(msg.body)));
-}
+    return this.subscribe(`/topic/game/player/${this.playerId}/result`, (msg) =>
+      handler(JSON.parse(msg.body)),
+    );
+  }
 
   /**
    * Отправляет ответ игрока.
@@ -97,12 +107,12 @@ class GameSocketService {
    */
   sendAnswer(optionId: string): void {
     if (!this.playerId) {
-      console.error('playerId не установлен');
+      console.error("playerId не установлен");
       return;
     }
-    this.publish('/app/game/main/answer', {
+    this.publish("/app/game/main/answer", {
       playerId: this.playerId,
-      optionId
+      optionId,
     });
   }
 
@@ -110,14 +120,14 @@ class GameSocketService {
    * Отправляет команду ведущего «Начать игру».
    */
   startGame(): void {
-    this.publish('/app/game/main/start', {});
+    this.publish("/app/game/main/start", {});
   }
 
   /**
    * Отправляет команду ведущего «Следующий вопрос».
    */
   nextQuestion(): void {
-    this.publish('/app/game/main/next', {});
+    this.publish("/app/game/main/next", {});
   }
 
   /**
@@ -126,9 +136,12 @@ class GameSocketService {
    * @param handler — обработчик сообщения
    * @returns функция отписки
    */
-  private subscribe(destination: string, handler: (msg: IMessage) => void): () => void {
+  private subscribe(
+    destination: string,
+    handler: (msg: IMessage) => void,
+  ): () => void {
     if (!this.client || !this.client.connected) {
-      console.warn('STOMP-клиент не подключён');
+      console.warn("STOMP-клиент не подключён");
       return () => {};
     }
     const sub = this.client.subscribe(destination, handler);
@@ -142,13 +155,20 @@ class GameSocketService {
    */
   private publish(destination: string, body: unknown): void {
     if (!this.client || !this.client.connected) {
-      console.warn('STOMP-клиент не подключён');
+      console.warn("STOMP-клиент не подключён");
       return;
     }
     this.client.publish({
       destination,
-      body: JSON.stringify(body)
+      body: JSON.stringify(body),
     });
+  }
+  /**
+   * Отправляет на сервер настройку автоматического перехода.
+   * @param enabled — true, если автоматический переход включён
+   */
+  setAutoNext(enabled: boolean): void {
+    this.publish("/app/game/main/auto-next", { enabled });
   }
 }
 

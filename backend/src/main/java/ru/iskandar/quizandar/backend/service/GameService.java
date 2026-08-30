@@ -2,10 +2,16 @@ package ru.iskandar.quizandar.backend.service;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import ru.iskandar.quizandar.backend.model.AnswerRecord;
@@ -14,103 +20,257 @@ import ru.iskandar.quizandar.backend.model.Option;
 import ru.iskandar.quizandar.backend.model.Question;
 import ru.iskandar.quizandar.backend.model.QuestionType;
 import ru.iskandar.quizandar.backend.response.PlayerResponse;
-import jakarta.annotation.PostConstruct;
 
+/**
+ * Сервис управления игровым процессом. Хранит состояние комнаты, обрабатывает
+ * ответы, управляет таймерами и автоматическим переходом к следующему вопросу.
+ */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class GameService {
 
-	private final QuestionService questionService;
+	/** Шаблон для отправки сообщений через WebSocket. */
 	private final SimpMessagingTemplate messagingTemplate;
 
+	/** Сервис загрузки вопросов. */
+	private final QuestionService questionService;
+
+	/** Игровая комната (одна на приложение). */
 	private final GameRoom room = new GameRoom("main");
 
-	// Инициализация: загрузка вопросов
+	/** Планировщик задач для таймеров вопроса и задержек. */
+	private ScheduledExecutorService scheduler;
+
+	/** Будущая задача таймаута текущего вопроса. */
+	private ScheduledFuture<?> questionTimeoutFuture;
+
+	/** Будущая задача отложенного перехода к следующему вопросу. */
+	private ScheduledFuture<?> nextQuestionFuture;
+
+	/**
+	 * Флаг автоматического перехода к следующему вопросу (по умолчанию включён).
+	 */
+	private volatile boolean autoNext = true;
+
+	/**
+	 * Задержка перед автоматическим переходом (в секундах) для просмотра
+	 * результатов.
+	 */
+	private static final long AUTO_NEXT_DELAY_SECONDS = 5;
+
+	/**
+	 * Инициализация сервиса: создание планировщика и загрузка вопросов.
+	 */
 	@PostConstruct
 	public void init() {
+		scheduler = Executors.newSingleThreadScheduledExecutor();
 		room.setQuestions(questionService.getAllQuestions());
+		log.info("GameService инициализирован, загружено вопросов: {}", room.getQuestions().size());
 	}
 
-	// Добавить игрока (вызывается после регистрации)
-	public void addPlayer(PlayerResponse player) {
-		room.addPlayer(player);
-		// Отправить обновлённый список игроков ведущему
-		sendToHost("/topic/game/players", room.getPlayers().values());
-	}
-
-	// Начать игру: сбросить очки и начать с первого вопроса
-	public void startGame() {
-		room.resetScores();
-		room.setQuestions(questionService.getAllQuestions());
-		room.nextQuestion(); // загрузить первый вопрос
-		broadcastQuestion();
-	}
-
-	// Отправить текущий вопрос всем игрокам
-	private void broadcastQuestion() {
-		Question q = room.getCurrentQuestion();
-		if (q != null) {
-			// Отправляем копию без правильных ответов!
-			QuestionDto questionDto = toDto(q);
-			messagingTemplate.convertAndSend("/topic/game/question", questionDto);
-			sendToHost("/topic/game/status", Map.of("active", true));
+	/**
+	 * Останавливает планировщик при завершении работы приложения.
+	 */
+	@PreDestroy
+	public void shutdown() {
+		if (scheduler != null) {
+			scheduler.shutdownNow();
 		}
 	}
 
-	// Обработать ответ игрока
+	/**
+	 * Устанавливает флаг автоматического перехода.
+	 *
+	 * @param value true, если нужно автоматически переходить к следующему вопросу
+	 */
+	public void setAutoNext(boolean value) {
+		this.autoNext = value;
+		log.info("Автопереход установлен в {}", value);
+	}
+
+	/**
+	 * Добавляет игрока в комнату и уведомляет ведущего об обновлении списка.
+	 *
+	 * @param player данные игрока
+	 */
+	public void addPlayer(PlayerResponse player) {
+		room.addPlayer(player);
+		sendToHost("/topic/game/players", room.getPlayers().values());
+	}
+
+	/**
+	 * Запускает игру: сбрасывает очки, загружает вопросы и показывает первый
+	 * вопрос.
+	 */
+	public void startGame() {
+		room.resetScores();
+		room.setQuestions(questionService.getAllQuestions());
+		room.nextQuestion(); // переключиться на первый вопрос (индекс станет 0)
+		broadcastQuestion();
+	}
+
+	/**
+	 * Переходит к следующему вопросу и рассылает его игрокам. Если вопросы
+	 * закончились, отправляет финальные результаты.
+	 */
+	public void nextQuestion() {
+		cancelPendingTasks(); // отменяем все отложенные задачи
+		Question q = room.nextQuestion();
+		if (q != null) {
+			broadcastQuestion();
+		} else {
+			sendFinalScores();
+		}
+	}
+
+	/**
+	 * Обрабатывает ответ игрока.
+	 *
+	 * @param playerId         идентификатор игрока
+	 * @param selectedOptionId выбранный вариант ответа
+	 */
 	public void submitAnswer(String playerId, String selectedOptionId) {
-		log.info("Получен ответ: playerId={}, optionId={}", playerId, selectedOptionId);
 		AnswerRecord record = room.processAnswer(playerId, selectedOptionId);
 		if (record != null) {
 			log.info("Ответ обработан: {}", record);
-			// Подтверждение игроку
+			// Отправляем персональный результат игроку
 			messagingTemplate.convertAndSend("/topic/game/player/" + playerId + "/result", record);
-			// Если все ответили, отправить результаты ведущему
+
+			// Если все ответили, завершаем вопрос и переходим дальше
 			if (room.allPlayersAnswered()) {
-				room.endQuestion();
-				sendResultsToAll();
+				finishQuestionAndProceed();
 			}
 		} else {
 			log.warn("Ответ не обработан (возможно, уже отвечал или вопрос не активен)");
 		}
 	}
 
-	// Отправить результаты текущего вопроса всем
-	private void sendResultsToAll() {
-		List<AnswerRecord> results = room.getCurrentResults();
-		messagingTemplate.convertAndSend("/topic/game/results", results);
-		// Также обновить общий счёт
-		messagingTemplate.convertAndSend("/topic/game/scores", room.getScores());
-		sendToHost("/topic/game/status", Map.of("active", false));
-	}
+	/**
+	 * Отправляет текущий вопрос всем игрокам и запускает таймер времени.
+	 */
+	private void broadcastQuestion() {
+		Question q = room.getCurrentQuestion();
+		if (q == null)
+			return;
 
-	// Перейти к следующему вопросу (по команде ведущего)
-	public void nextQuestion() {
-		Question q = room.nextQuestion();
-		if (q != null) {
-			broadcastQuestion();
-		} else {
-			// Вопросы закончились — отправить финальные результаты
-			messagingTemplate.convertAndSend("/topic/game/final-scores", room.getScores());
-			sendToHost("/topic/game/status", Map.of("finished", true));
+		// Отправляем вопрос без правильных ответов
+		messagingTemplate.convertAndSend("/topic/game/question", toDto(q));
+		messagingTemplate.convertAndSend("/topic/game/status", (Object) Map.of("active", true));
+
+		// Запускаем таймер окончания вопроса
+		if (q.getTimeLimitSec() > 0) {
+			scheduleQuestionTimeout(q.getTimeLimitSec());
 		}
 	}
 
-	// Вспомогательный метод для отправки сообщения ведущему (используем отдельный
-	// топик)
-	private void sendToHost(String destination, Object payload) {
-		messagingTemplate.convertAndSend(destination, payload);
+	/**
+	 * Планирует задачу таймаута вопроса.
+	 *
+	 * @param timeLimitSec лимит времени в секундах
+	 */
+	private void scheduleQuestionTimeout(int timeLimitSec) {
+		cancelQuestionTimeout();
+		questionTimeoutFuture = scheduler.schedule(() -> {
+			log.info("Время вопроса истекло, завершаем...");
+			if (room.isQuestionActive()) {
+				finishQuestionAndProceed();
+			}
+		}, timeLimitSec, TimeUnit.SECONDS);
 	}
 
-	// Преобразование Question в DTO без правильных ответов
+	/**
+	 * Завершает текущий вопрос: отменяет таймер, отправляет результаты, и если
+	 * autoNext включён и есть ещё вопросы, планирует переход.
+	 */
+	private void finishQuestionAndProceed() {
+		cancelQuestionTimeout();
+		room.endQuestion();
+
+		// Отправляем результаты текущего вопроса всем
+		List<AnswerRecord> results = room.getCurrentResults();
+		messagingTemplate.convertAndSend("/topic/game/results", results);
+		messagingTemplate.convertAndSend("/topic/game/scores", room.getScores());
+		messagingTemplate.convertAndSend("/topic/game/status", (Object) Map.of("active", false));
+
+		// Если автопереход включён и есть ещё вопросы, планируем следующий
+		if (autoNext && room.getCurrentQuestionIndex() < room.getQuestions().size() - 1) {
+			scheduleNextQuestion();
+		}
+	}
+
+	/**
+	 * Планирует переход к следующему вопросу с задержкой для просмотра результатов.
+	 */
+	private void scheduleNextQuestion() {
+		cancelNextQuestionFuture();
+		nextQuestionFuture = scheduler.schedule(() -> {
+			log.info("Автопереход к следующему вопросу...");
+			nextQuestion();
+		}, AUTO_NEXT_DELAY_SECONDS, TimeUnit.SECONDS);
+	}
+
+	/**
+	 * Отправляет финальные результаты игры всем участникам.
+	 */
+	private void sendFinalScores() {
+		log.info("Игра завершена, отправляем финальный счёт");
+		messagingTemplate.convertAndSend("/topic/game/final-scores", room.getScores());
+		messagingTemplate.convertAndSend("/topic/game/status", (Object) Map.of("finished", true));
+	}
+
+	/**
+	 * Отменяет все запланированные задачи (таймер вопроса и отложенный переход).
+	 */
+	private void cancelPendingTasks() {
+		cancelQuestionTimeout();
+		cancelNextQuestionFuture();
+	}
+
+	/**
+	 * Отменяет задачу таймаута вопроса, если она была запланирована.
+	 */
+	private void cancelQuestionTimeout() {
+		if (questionTimeoutFuture != null && !questionTimeoutFuture.isDone()) {
+			questionTimeoutFuture.cancel(false);
+			questionTimeoutFuture = null;
+		}
+	}
+
+	/**
+	 * Отменяет задачу отложенного перехода к следующему вопросу.
+	 */
+	private void cancelNextQuestionFuture() {
+		if (nextQuestionFuture != null && !nextQuestionFuture.isDone()) {
+			nextQuestionFuture.cancel(false);
+			nextQuestionFuture = null;
+		}
+	}
+
+	/**
+	 * Преобразует Question в DTO для клиента (без правильных ответов).
+	 *
+	 * @param q исходный вопрос
+	 * @return DTO вопроса
+	 */
 	private QuestionDto toDto(Question q) {
-		// Создаём DTO для клиента
 		return QuestionDto.builder().id(q.getId()).text(q.getText()).type(q.getType()).timeLimitSec(q.getTimeLimitSec())
 				.options(q.getOptions()).build();
 	}
 
-	// DTO для вопроса (без correctOptionIds) — можно вынести в отдельный класс
+	/**
+	 * Отправляет сообщение ведущему через общий топик.
+	 *
+	 * @param destination адрес назначения
+	 * @param payload     данные
+	 */
+	private void sendToHost(String destination, Object payload) {
+		messagingTemplate.convertAndSend(destination, payload);
+	}
+
+	/**
+	 * DTO вопроса для клиента (внутренний класс).
+	 */
 	@lombok.Data
 	@lombok.Builder
 	@lombok.NoArgsConstructor

@@ -13,6 +13,13 @@
       {{ copyButtonText }}
     </button>
 
+    <div class="auto-next-toggle">
+      <label>
+        <input type="checkbox" v-model="autoNext" @change="onAutoNextChange" />
+        Автоматическое переключение на следующий вопрос
+      </label>
+    </div>
+
     <!-- Управление игрой -->
     <div class="controls">
       <button @click="startGame">Начать игру</button>
@@ -64,6 +71,16 @@ const results = ref<AnswerRecord[]>([]);
 const gameStarted = ref(false);
 /** Текст на кнопке копирования */
 const copyButtonText = ref('Копировать ссылку');
+
+/** Флаг автоматического перехода (по умолчанию включён) */
+const autoNext = ref(true);
+
+/**
+ * Обрабатывает изменение настройки автоперехода.
+ */
+function onAutoNextChange(): void {
+  gameSocket.setAutoNext(autoNext.value);
+}
 
 /**
  * Копирует ссылку на страницу игрока в буфер обмена.
@@ -160,18 +177,21 @@ onMounted(() => {
   text-align: center;
   padding: 2rem;
 }
+
 .qr-container {
   display: inline-block;
   padding: 1rem;
   background: white;
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
+
 .url-text {
   margin-top: 1rem;
   font-family: monospace;
   font-size: 1.1rem;
 }
+
 .copy-button {
   margin-top: 0.5rem;
   padding: 0.5rem 1rem;
@@ -183,18 +203,22 @@ onMounted(() => {
   color: white;
   transition: background-color 0.2s;
 }
+
 .copy-button:hover {
   background-color: #1976d2;
 }
+
 .controls {
   margin: 1rem 0;
 }
+
 .controls button {
   padding: 0.7rem 1.5rem;
   font-size: 1rem;
   margin: 0 0.5rem;
   cursor: pointer;
 }
+
 .players,
 .results,
 .question {
