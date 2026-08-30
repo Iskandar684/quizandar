@@ -99,33 +99,29 @@ function setupSocket(playerId: string): void {
   gameSocket.setPlayerId(playerId);
   gameSocket.connect(() => {
     console.log('WebSocket connected');
-  });
+    // Подписки настраиваем после подключения
+    gameSocket.onQuestion((q) => {
+      currentQuestion.value = q;
+      answered.value = false;
+      lastAnswer.value = null;
+      if (q.timeLimitSec > 0) {
+        timeLeft.value = q.timeLimitSec;
+        startTimer();
+      }
+    });
 
-  // Подписка на новый вопрос
-  gameSocket.onQuestion((q) => {
-    currentQuestion.value = q;
-    answered.value = false;
-    lastAnswer.value = null;
-    if (q.timeLimitSec > 0) {
-      timeLeft.value = q.timeLimitSec;
-      startTimer();
-    }
-  });
+    gameSocket.onResults((results) => {
+      console.log('Results:', results);
+    });
 
-  // Подписка на результаты (общие)
-  gameSocket.onResults((results) => {
-    console.log('Results:', results);
-    // можно показать общий рейтинг
-  });
-
-  // Подписка на персональный результат
-  gameSocket.onPersonalAnswerResult((record) => {
-    lastAnswer.value = record;
-    answered.value = true;
-    if (timer) {
-      clearInterval(timer);
-       timer = undefined; 
-    }
+    gameSocket.onPersonalAnswerResult((record) => {
+      lastAnswer.value = record;
+      answered.value = true;
+      if (timer !== undefined) {
+        clearInterval(timer);
+        timer = undefined;
+      }
+    });
   });
 }
 

@@ -62,24 +62,23 @@ const gameStarted = ref(false);
 function setupSocket(): void {
   gameSocket.connect(() => {
     console.log('Host connected');
-  });
+    gameSocket.onPlayers((list) => {
+      players.value = list;
+    });
 
-  gameSocket.onPlayers((list) => {
-    players.value = list;
-  });
+    gameSocket.onQuestion((q) => {
+      currentQuestion.value = q;
+      results.value = [];
+      gameStarted.value = true;
+    });
 
-  gameSocket.onQuestion((q) => {
-    currentQuestion.value = q;
-    results.value = [];
-    gameStarted.value = true;
-  });
+    gameSocket.onResults((res) => {
+      results.value = res;
+    });
 
-  gameSocket.onResults((res) => {
-    results.value = res;
-  });
-
-  gameSocket.onScores((scores) => {
-    console.log('Scores:', scores);
+    gameSocket.onScores((scores) => {
+      console.log('Scores:', scores);
+    });
   });
 }
 
