@@ -6,5 +6,5 @@ echo Stopping and removing old container...
 docker stop quizandar-backend 2>nul
 docker rm quizandar-backend 2>nul
 echo Starting new container...
-docker run -d -p 8080:8080 --name quizandar-backend --restart unless-stopped quizandar-backend:latest
+docker run -d -p 8080:8080 -p 5005:5005 --name quizandar-backend --restart unless-stopped quizandar-backend:latest
 echo Done. Swagger UI: http://localhost:8080/swagger-ui/index.html

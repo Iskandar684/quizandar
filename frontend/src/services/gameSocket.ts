@@ -83,13 +83,13 @@ class GameSocketService {
    * @param handler — обработчик получения результата
    * @returns функция отписки
    */
-  onPersonalAnswerResult(handler: (record: AnswerRecord) => void): () => void {
+ onPersonalAnswerResult(handler: (record: AnswerRecord) => void): () => void {
     if (!this.playerId) {
       console.warn('playerId не установлен');
       return () => {};
     }
-    return this.subscribe(`/user/${this.playerId}/queue/answer-result`, (msg) => handler(JSON.parse(msg.body)));
-  }
+    return this.subscribe(`/topic/game/player/${this.playerId}/result`, (msg) => handler(JSON.parse(msg.body)));
+}
 
   /**
    * Отправляет ответ игрока.

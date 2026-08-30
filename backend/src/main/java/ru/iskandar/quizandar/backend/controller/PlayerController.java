@@ -15,6 +15,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import ru.iskandar.quizandar.backend.request.CreatePlayerRequest;
 import ru.iskandar.quizandar.backend.response.PlayerResponse;
+import ru.iskandar.quizandar.backend.service.GameService;
 import ru.iskandar.quizandar.backend.service.PlayerService;
 
 @RestController
@@ -24,6 +25,8 @@ public class PlayerController {
 
 	private final PlayerService playerService;
 
+	private final GameService gameService;
+
 	@Operation(summary = "Регистрация игрока", description = "Создаёт нового игрока и возвращает его описание")
 	@ApiResponse(responseCode = "200", description = "Игрок успешно зарегистрирован")
 	@ApiResponse(responseCode = "400", description = "Некорректное имя")
@@ -32,7 +35,9 @@ public class PlayerController {
 		if (request.getName() == null || request.getName().isBlank()) {
 			return ResponseEntity.badRequest().build();
 		}
-		return ResponseEntity.ok(playerService.register(request));
+		PlayerResponse newPlayer = playerService.register(request);
+		gameService.addPlayer(newPlayer);
+		return ResponseEntity.ok(newPlayer);
 	}
 
 	/**

@@ -41,7 +41,7 @@ public class GameService {
 
 	// Начать игру: сбросить очки и начать с первого вопроса
 	public void startGame() {
-		room.getScores().clear();
+		room.resetScores();
 		room.setQuestions(questionService.getAllQuestions());
 		room.nextQuestion(); // загрузить первый вопрос
 		broadcastQuestion();
@@ -60,15 +60,19 @@ public class GameService {
 
 	// Обработать ответ игрока
 	public void submitAnswer(String playerId, String selectedOptionId) {
+		log.info("Получен ответ: playerId={}, optionId={}", playerId, selectedOptionId);
 		AnswerRecord record = room.processAnswer(playerId, selectedOptionId);
 		if (record != null) {
+			log.info("Ответ обработан: {}", record);
 			// Подтверждение игроку
-			messagingTemplate.convertAndSendToUser(playerId, "/queue/answer-result", record);
+			messagingTemplate.convertAndSend("/topic/game/player/" + playerId + "/result", record);
 			// Если все ответили, отправить результаты ведущему
 			if (room.allPlayersAnswered()) {
 				room.endQuestion();
 				sendResultsToAll();
 			}
+		} else {
+			log.warn("Ответ не обработан (возможно, уже отвечал или вопрос не активен)");
 		}
 	}
 

@@ -7,9 +7,11 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import lombok.Data;
 import lombok.experimental.Accessors;
+import lombok.extern.slf4j.Slf4j;
 import ru.iskandar.quizandar.backend.response.PlayerResponse;
 
 @Data
+@Slf4j
 @Accessors(prefix = "_")
 public class GameRoom {
 
@@ -76,6 +78,10 @@ public class GameRoom {
 
 	// Проверить ответ и начислить очки
 	public AnswerRecord processAnswer(String playerId, String selectedOptionId) {
+		log.info("Текущий вопрос: {}", _currentQuestion.getText());
+		log.info("Правильные ответы: {}", _currentQuestion.getCorrectOptionIds());
+		log.info("Выбранный вариант: {}", selectedOptionId);
+		
 		if (!_questionActive || _currentQuestion == null)
 			return null;
 		if (!_players.containsKey(playerId))
@@ -89,6 +95,7 @@ public class GameRoom {
 		// Логика баллов: базово 1000 очков, минус штраф за время (например, 1 очко за
 		// 10 мс, макс 10 сек)
 		int points = correct ? Math.max(100, 1000 - (int) (timeTaken / 10)) : 0;
+		log.info("Правильный? {}", correct);
 		if (correct) {
 			_scores.merge(playerId, points, Integer::sum);
 		}
@@ -111,4 +118,12 @@ public class GameRoom {
 	public Map<String, Integer> getScores() {
 		return Map.copyOf(_scores);
 	}
+
+	/**
+	 * Сбрасывает все очки игроков.
+	 */
+	public void resetScores() {
+		_scores.clear();
+	}
+
 }
