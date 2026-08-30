@@ -14,6 +14,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import ru.iskandar.quizandar.backend.request.CreatePlayerRequest;
+import ru.iskandar.quizandar.backend.request.JoinPlayerRequest;
 import ru.iskandar.quizandar.backend.response.PlayerResponse;
 import ru.iskandar.quizandar.backend.service.GameService;
 import ru.iskandar.quizandar.backend.service.PlayerService;
@@ -59,4 +60,24 @@ public class PlayerController {
 	public ResponseEntity<Map<String, PlayerResponse>> getAll() {
 		return ResponseEntity.ok(playerService.getAll());
 	}
+
+	/**
+	 * Подключает существующего игрока к игре. Используется, когда игрок повторно
+	 * заходит на страницу с сохранённым ID.
+	 *
+	 * @param request запрос с id и именем игрока
+	 * @return подтверждение с данными игрока
+	 */
+	@PostMapping("/join")
+	public ResponseEntity<PlayerResponse> join(@RequestBody JoinPlayerRequest request) {
+		var id = request.getId();
+		var name = request.getName();
+		if (id == null || id.isBlank() || name == null || name.isBlank()) {
+			return ResponseEntity.badRequest().build();
+		}
+		PlayerResponse player = playerService.registerWithId(id, name);
+		gameService.addPlayer(player);
+		return ResponseEntity.ok(player);
+	}
+
 }

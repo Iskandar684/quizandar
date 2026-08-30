@@ -20,13 +20,8 @@
         Осталось: {{ timeLeft }} сек.
       </p>
       <div class="options">
-        <button
-          v-for="opt in currentQuestion.options"
-          :key="opt.id"
-          @click="selectOption(opt.id)"
-          :disabled="answered"
-          class="option-button"
-        >
+        <button v-for="opt in currentQuestion.options" :key="opt.id" @click="selectOption(opt.id)" :disabled="answered"
+          class="option-button">
           {{ opt.text }}
         </button>
       </div>
@@ -134,7 +129,7 @@ function startTimer(): void {
     timeLeft.value--;
     if (timeLeft.value <= 0) {
       clearInterval(timer);
-       timer = undefined; 
+      timer = undefined;
       // Если время вышло и не ответили — считаем, что ответа нет
       if (!answered.value) {
         answered.value = true;
@@ -156,17 +151,36 @@ function selectOption(optionId: string): void {
 
 // При монтировании проверяем, есть ли сохранённый игрок
 onMounted(() => {
-  const saved = localStorage.getItem('quizandar_player');
-  if (saved) {
-    try {
-      const p = JSON.parse(saved) as Player;
-      player.value = p;
-      setupSocket(p.id);
-    } catch (e) {
-      localStorage.removeItem('quizandar_player');
-    }
-  }
+  restoreOrJoin();
 });
+
+/**
+ * Восстанавливает сессию игрока, если она была сохранена ранее.
+ * Отправляет запрос на сервер для добавления в игровую комнату.
+ */
+async function restoreOrJoin(): Promise<void> {
+  const saved = localStorage.getItem('quizandar_player');
+  if (!saved) return;
+
+  try {
+    const savedPlayer = JSON.parse(saved) as Player;
+    if (savedPlayer.id && savedPlayer.name) {
+      const { data } = await axios.post<Player>('/api/players/join', {
+        id: savedPlayer.id,
+        name: savedPlayer.name
+      });
+      player.value = data;
+      // Обновляем localStorage (имя могло измениться)
+      localStorage.setItem('quizandar_player', JSON.stringify(data));
+      setupSocket(data.id);
+    }
+  } catch (e) {
+    // Если сервер вернул ошибку (например, ID больше не существует),
+    // удаляем устаревшие данные и показываем форму регистрации.
+    localStorage.removeItem('quizandar_player');
+    player.value = null;
+  }
+}
 
 // При размонтировании отписываемся (опционально)
 onBeforeUnmount(() => {
@@ -181,6 +195,7 @@ onBeforeUnmount(() => {
   padding: 1rem;
   text-align: center;
 }
+
 .registration input {
   width: 100%;
   padding: 0.7rem;
@@ -189,6 +204,7 @@ onBeforeUnmount(() => {
   border: 1px solid #ccc;
   border-radius: 6px;
 }
+
 .registration button,
 .option-button {
   padding: 0.7rem 1.5rem;
@@ -200,29 +216,35 @@ onBeforeUnmount(() => {
   cursor: pointer;
   margin: 0.2rem;
 }
+
 .registration button:disabled,
 .option-button:disabled {
   background-color: #aaa;
   cursor: not-allowed;
 }
+
 .options {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   gap: 0.5rem;
 }
+
 .correct {
   color: #2e7d32;
   font-weight: bold;
 }
+
 .incorrect {
   color: #c62828;
   font-weight: bold;
 }
+
 .error {
   color: red;
   margin-top: 0.5rem;
 }
+
 .waiting {
   font-size: 1.2rem;
   color: #666;
