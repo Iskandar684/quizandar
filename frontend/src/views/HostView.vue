@@ -1,11 +1,17 @@
 <template>
   <div class="host-view">
     <h1>Quizandar — Ведущий</h1>
-    <!-- QR-код для подключения игроков -->
+
+    <!-- QR-код -->
     <div class="qr-container">
       <qrcode-vue :value="playerUrl" :size="300" level="M" />
     </div>
     <p class="url-text">{{ playerUrl }}</p>
+
+    <!-- Кнопка копирования ссылки -->
+    <button @click="copyLink" class="copy-button">
+      {{ copyButtonText }}
+    </button>
 
     <!-- Управление игрой -->
     <div class="controls">
@@ -21,7 +27,7 @@
       </ul>
     </div>
 
-    <!-- Текущий вопрос (для ведущего) -->
+    <!-- Текущий вопрос -->
     <div v-if="currentQuestion" class="question">
       <h2>{{ currentQuestion.text }}</h2>
       <p>Тип: {{ currentQuestion.type }} | Время: {{ currentQuestion.timeLimitSec }} сек.</p>
@@ -45,8 +51,9 @@ import QrcodeVue from 'qrcode.vue';
 import { gameSocket } from '@/services/gameSocket';
 import type { AnswerRecord, Player, Question } from '@/types/game';
 
-/** URL для QR-кода (страница игрока) */
+/** URL для QR-кода */
 const playerUrl = computed(() => `${window.location.origin}/#/player`);
+
 /** Список игроков */
 const players = ref<Player[]>([]);
 /** Текущий вопрос */
@@ -55,6 +62,43 @@ const currentQuestion = ref<Question | null>(null);
 const results = ref<AnswerRecord[]>([]);
 /** Флаг, что игра началась */
 const gameStarted = ref(false);
+/** Текст на кнопке копирования */
+const copyButtonText = ref('Копировать ссылку');
+
+/**
+ * Копирует ссылку на страницу игрока в буфер обмена.
+ * Использует navigator.clipboard, при недоступности — fallback.
+ */
+async function copyLink(): Promise<void> {
+  const url = playerUrl.value;
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(url);
+    } else {
+      // Fallback для старых браузеров или небезопасного контекста
+      const textArea = document.createElement('textarea');
+      textArea.value = url;
+      textArea.style.position = 'fixed';
+      textArea.style.left = '-9999px';
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+    }
+    // Показываем подтверждение
+    copyButtonText.value = 'Скопировано!';
+    setTimeout(() => {
+      copyButtonText.value = 'Копировать ссылку';
+    }, 2000);
+  } catch (err) {
+    console.error('Ошибка копирования:', err);
+    copyButtonText.value = 'Ошибка копирования';
+    setTimeout(() => {
+      copyButtonText.value = 'Копировать ссылку';
+    }, 2000);
+  }
+}
 
 /**
  * Подключение к WebSocket и подписка на события.
@@ -127,6 +171,20 @@ onMounted(() => {
   margin-top: 1rem;
   font-family: monospace;
   font-size: 1.1rem;
+}
+.copy-button {
+  margin-top: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-size: 1rem;
+  cursor: pointer;
+  border: none;
+  border-radius: 6px;
+  background-color: #2196f3;
+  color: white;
+  transition: background-color 0.2s;
+}
+.copy-button:hover {
+  background-color: #1976d2;
 }
 .controls {
   margin: 1rem 0;
