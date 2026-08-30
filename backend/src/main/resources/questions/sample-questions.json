@@ -2,26 +2,183 @@
   "questions": [
     {
       "id": "q1",
-      "text": "Сколько будет 2+2?",
+      "text": "Как звали кота из мультфильма «Простоквашино»?",
       "type": "SINGLE",
-      "timeLimitSec": 30,
+      "timeLimitSec": 10,
       "options": [
-        { "id": "a", "text": "3" },
-        { "id": "b", "text": "4" },
-        { "id": "c", "text": "5" }
+        { "id": "a", "text": "Матроскин" },
+        { "id": "b", "text": "Барсик" },
+        { "id": "c", "text": "Леопольд" }
       ],
-      "correctOptionIds": ["b"]
+      "correctOptionIds": ["a"]
     },
     {
       "id": "q2",
-      "text": "Java — это компилируемый язык?",
-      "type": "TRUE_FALSE",
-      "timeLimitSec": 30,
+      "text": "Кто пел песню «Я на солнышке лежу»?",
+      "type": "SINGLE",
+      "timeLimitSec": 10,
       "options": [
-        { "id": "true", "text": "Да" },
-        { "id": "false", "text": "Нет" }
+        { "id": "a", "text": "Львёнок" },
+        { "id": "b", "text": "Черепаха" },
+        { "id": "c", "text": "Крокодил" }
       ],
-      "correctOptionIds": ["true"]
+      "correctOptionIds": ["a"]
+    },
+    {
+      "id": "q3",
+      "text": "Как звали волка из «Ну, погоди!»?",
+      "type": "SINGLE",
+      "timeLimitSec": 10,
+      "options": [
+        { "id": "a", "text": "Волк" },
+        { "id": "b", "text": "Заяц" },
+        { "id": "c", "text": "Лис" }
+      ],
+      "correctOptionIds": ["a"]
+    },
+    {
+      "id": "q4",
+      "text": "Из какого мультфильма персонаж Винни-Пух?",
+      "type": "SINGLE",
+      "timeLimitSec": 10,
+      "options": [
+        { "id": "a", "text": "Винни-Пух" },
+        { "id": "b", "text": "Карлсон" },
+        { "id": "c", "text": "Кот Леопольд" }
+      ],
+      "correctOptionIds": ["a"]
+    },
+    {
+      "id": "q5",
+      "text": "Как звали друга Чебурашки?",
+      "type": "SINGLE",
+      "timeLimitSec": 10,
+      "options": [
+        { "id": "a", "text": "Крокодил Гена" },
+        { "id": "b", "text": "Шапокляк" },
+        { "id": "c", "text": "Крыса Лариса" }
+      ],
+      "correctOptionIds": ["a"]
+    },
+    {
+      "id": "q6",
+      "text": "Что говорил кот Леопольд мышам?",
+      "type": "SINGLE",
+      "timeLimitSec": 10,
+      "options": [
+        { "id": "a", "text": "Ребята, давайте жить дружно!" },
+        { "id": "b", "text": "Ну, погоди!" },
+        { "id": "c", "text": "Спокойной ночи, малыши!" }
+      ],
+      "correctOptionIds": ["a"]
+    },
+    {
+      "id": "q7",
+      "text": "Какой подарок получил Винни-Пух на день рождения?",
+      "type": "SINGLE",
+      "timeLimitSec": 10,
+      "options": [
+        { "id": "a", "text": "Горшочек мёда" },
+        { "id": "b", "text": "Воздушный шарик" },
+        { "id": "c", "text": "Банку варенья" }
+      ],
+      "correctOptionIds": ["a"]
+    },
+    {
+      "id": "q8",
+      "text": "Кто живёт на крыше в мультфильме про Карлсона?",
+      "type": "SINGLE",
+      "timeLimitSec": 10,
+      "options": [
+        { "id": "a", "text": "Карлсон" },
+        { "id": "b", "text": "Малыш" },
+        { "id": "c", "text": "Фрекен Бок" }
+      ],
+      "correctOptionIds": ["a"]
+    },
+    {
+      "id": "q9",
+      "text": "Как звали собаку из «Простоквашино»?",
+      "type": "SINGLE",
+      "timeLimitSec": 10,
+      "options": [
+        { "id": "a", "text": "Шарик" },
+        { "id": "b", "text": "Барбос" },
+        { "id": "c", "text": "Тузик" }
+      ],
+      "correctOptionIds": ["a"]
+    },
+    {
+      "id": "q10",
+      "text": "Что пел крокодил Гена?",
+      "type": "SINGLE",
+      "timeLimitSec": 10,
+      "options": [
+        { "id": "a", "text": "Песенку о дне рождения" },
+        { "id": "b", "text": "Песню о дружбе" },
+        { "id": "c", "text": "Песню о лете" }
+      ],
+      "correctOptionIds": ["a"]
+    },
+    {
+      "id": "q11",
+      "text": "Кто такой Бонифаций?",
+      "type": "SINGLE",
+      "timeLimitSec": 10,
+      "options": [
+        { "id": "a", "text": "Лев" },
+        { "id": "b", "text": "Тигр" },
+        { "id": "c", "text": "Слон" }
+      ],
+      "correctOptionIds": ["a"]
+    },
+    {
+      "id": "q12",
+      "text": "Как звали почтальона из Простоквашино?",
+      "type": "SINGLE",
+      "timeLimitSec": 10,
+      "options": [
+        { "id": "a", "text": "Печкин" },
+        { "id": "b", "text": "Иванов" },
+        { "id": "c", "text": "Сидоров" }
+      ],
+      "correctOptionIds": ["a"]
+    },
+    {
+      "id": "q13",
+      "text": "Какой герой жил в доме с надписью «Посторонним В»?",
+      "type": "SINGLE",
+      "timeLimitSec": 10,
+      "options": [
+        { "id": "a", "text": "Домовёнок Кузя" },
+        { "id": "b", "text": "Старик Хоттабыч" },
+        { "id": "c", "text": "Баба-Яга" }
+      ],
+      "correctOptionIds": ["a"]
+    },
+    {
+      "id": "q14",
+      "text": "Что нёс Ёжик в тумане?",
+      "type": "SINGLE",
+      "timeLimitSec": 10,
+      "options": [
+        { "id": "a", "text": "Узелок с едой" },
+        { "id": "b", "text": "Цветы" },
+        { "id": "c", "text": "Воздушный шарик" }
+      ],
+      "correctOptionIds": ["a"]
+    },
+    {
+      "id": "q15",
+      "text": "Как звали кота, который всё время говорил «Ну, погоди!»?",
+      "type": "SINGLE",
+      "timeLimitSec": 10,
+      "options": [
+        { "id": "a", "text": "Волк" },
+        { "id": "b", "text": "Заяц" },
+        { "id": "c", "text": "Том" }
+      ],
+      "correctOptionIds": ["a"]
     }
   ]
 }
