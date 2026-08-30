@@ -20,13 +20,8 @@
         Осталось: {{ timeLeft }} сек.
       </p>
       <div class="options">
-        <button
-          v-for="opt in currentQuestion.options"
-          :key="opt.id"
-          @click="selectOption(opt.id)"
-          :disabled="answered"
-          class="option-button"
-        >
+        <button v-for="opt in currentQuestion.options" :key="opt.id" @click="selectOption(opt.id)" :disabled="answered"
+          class="option-button">
           {{ opt.text }}
         </button>
       </div>
@@ -55,9 +50,9 @@
         </thead>
         <tbody>
           <tr v-for="(entry, index) in sortedFinalScores" :key="entry[0]"
-              :class="{ 'highlight': entry[0] === player?.id }">
+            :class="{ 'highlight': entry[0] === player?.id }">
             <td>{{ index + 1 }}</td>
-            <td>{{ entry[0] === player?.id ? 'Вы' : entry[0] }}</td>
+            <td>{{ getPlayerName(entry[0]) }}</td>
             <td>{{ entry[1] }}</td>
           </tr>
         </tbody>
@@ -95,6 +90,9 @@ const gameFinished = ref(false);
 /** Финальные очки */
 const finalScores = ref<ScoreMap | null>(null);
 
+/** Список всех игроков */
+const players = ref<Player[]>([]);
+
 /** Моё место в таблице */
 const myPlace = computed(() => {
   if (!finalScores.value || !player.value) return null;
@@ -114,6 +112,28 @@ const sortedFinalScores = computed(() => {
   if (!finalScores.value) return [];
   return Object.entries(finalScores.value).sort((a, b) => b[1] - a[1]);
 });
+
+/**
+ * Загружает список всех игроков с сервера.
+ */
+async function fetchPlayers(): Promise<void> {
+  try {
+    const { data } = await axios.get<Record<string, Player>>('/api/players');
+    players.value = Object.values(data);
+  } catch (e) {
+    console.error('Не удалось получить список игроков', e);
+  }
+}
+
+/**
+ * Возвращает отображаемое имя игрока по его идентификатору.
+ * @param playerId — идентификатор
+ */
+function getPlayerName(playerId: string): string {
+  if (playerId === player.value?.id) return 'Вы';
+  const p = players.value.find((pl) => pl.id === playerId);
+  return p ? p.name : playerId;
+}
 
 /**
  * Регистрация игрока через REST API.
@@ -168,6 +188,10 @@ function setupSocket(playerId: string): void {
   gameSocket.setPlayerId(playerId);
   gameSocket.connect(() => {
     console.log('WebSocket connected');
+    // Подписка на обновление списка игроков
+    gameSocket.onPlayers((list) => {
+      players.value = list;
+    });
     gameSocket.onQuestion((q) => {
       currentQuestion.value = q;
       answered.value = false;
@@ -202,6 +226,8 @@ function setupSocket(playerId: string): void {
         clearInterval(timer);
         timer = undefined;
       }
+      // Получаем актуальный список игроков для отображения имён
+      fetchPlayers();
     });
   });
 }
@@ -303,24 +329,30 @@ onBeforeUnmount(() => {
   font-size: 1.2rem;
   color: #666;
 }
+
 .final-results {
   text-align: center;
   padding: 2rem;
 }
+
 table {
   width: 100%;
   max-width: 400px;
   margin: 1rem auto;
   border-collapse: collapse;
 }
-th, td {
+
+th,
+td {
   padding: 0.5rem;
   border: 1px solid #ccc;
   text-align: left;
 }
+
 th {
   background-color: #f0f0f0;
 }
+
 .highlight {
   background-color: #e0f2f1;
   font-weight: bold;
