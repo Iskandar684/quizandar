@@ -13,6 +13,7 @@
       {{ copyButtonText }}
     </button>
 
+    <!-- Настройка автоперехода -->
     <div class="auto-next-toggle">
       <label>
         <input type="checkbox" v-model="autoNext" @change="onAutoNextChange" />
@@ -40,7 +41,7 @@
       <p>Тип: {{ currentQuestion.type }} | Время: {{ currentQuestion.timeLimitSec }} сек.</p>
     </div>
 
-    <!-- Результаты -->
+    <!-- Результаты текущего вопроса -->
     <div v-if="results.length" class="results">
       <h2>Результаты:</h2>
       <ul>
@@ -49,6 +50,27 @@
         </li>
       </ul>
     </div>
+
+    <!-- Финальная таблица результатов -->
+    <div v-if="gameFinished && finalScores" class="final-results">
+      <h2>Итоговые результаты</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Место</th>
+            <th>Игрок</th>
+            <th>Баллы</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="(entry, index) in sortedFinalScores" :key="entry[0]">
+            <td>{{ index + 1 }}</td>
+            <td>{{ getPlayerName(entry[0]) }}</td>
+            <td>{{ entry[1] }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 </template>
 
@@ -56,7 +78,7 @@
 import { computed, onMounted, ref } from 'vue';
 import QrcodeVue from 'qrcode.vue';
 import { gameSocket } from '@/services/gameSocket';
-import type { AnswerRecord, Player, Question } from '@/types/game';
+import type { AnswerRecord, Player, Question, ScoreMap } from '@/types/game';
 
 /** URL для QR-кода */
 const playerUrl = computed(() => `${window.location.origin}/#/player`);
@@ -69,22 +91,23 @@ const currentQuestion = ref<Question | null>(null);
 const results = ref<AnswerRecord[]>([]);
 /** Флаг, что игра началась */
 const gameStarted = ref(false);
+/** Флаг, что игра завершена */
+const gameFinished = ref(false);
+/** Финальные очки */
+const finalScores = ref<ScoreMap | null>(null);
 /** Текст на кнопке копирования */
 const copyButtonText = ref('Копировать ссылку');
-
-/** Флаг автоматического перехода (по умолчанию включён) */
+/** Флаг автоматического перехода */
 const autoNext = ref(true);
 
-/**
- * Обрабатывает изменение настройки автоперехода.
- */
-function onAutoNextChange(): void {
-  gameSocket.setAutoNext(autoNext.value);
-}
+/** Отсортированный список финальных очков (по убыванию) */
+const sortedFinalScores = computed(() => {
+  if (!finalScores.value) return [];
+  return Object.entries(finalScores.value).sort((a, b) => b[1] - a[1]);
+});
 
 /**
  * Копирует ссылку на страницу игрока в буфер обмена.
- * Использует navigator.clipboard, при недоступности — fallback.
  */
 async function copyLink(): Promise<void> {
   const url = playerUrl.value;
@@ -92,7 +115,6 @@ async function copyLink(): Promise<void> {
     if (navigator.clipboard && window.isSecureContext) {
       await navigator.clipboard.writeText(url);
     } else {
-      // Fallback для старых браузеров или небезопасного контекста
       const textArea = document.createElement('textarea');
       textArea.value = url;
       textArea.style.position = 'fixed';
@@ -103,7 +125,6 @@ async function copyLink(): Promise<void> {
       document.execCommand('copy');
       document.body.removeChild(textArea);
     }
-    // Показываем подтверждение
     copyButtonText.value = 'Скопировано!';
     setTimeout(() => {
       copyButtonText.value = 'Копировать ссылку';
@@ -131,6 +152,8 @@ function setupSocket(): void {
       currentQuestion.value = q;
       results.value = [];
       gameStarted.value = true;
+      gameFinished.value = false;
+      finalScores.value = null;
     });
 
     gameSocket.onResults((res) => {
@@ -140,7 +163,21 @@ function setupSocket(): void {
     gameSocket.onScores((scores) => {
       console.log('Scores:', scores);
     });
+
+    gameSocket.onFinalScores((scores) => {
+      finalScores.value = scores;
+      gameFinished.value = true;
+      currentQuestion.value = null;
+      results.value = [];
+    });
   });
+}
+
+/**
+ * Обрабатывает изменение настройки автоперехода.
+ */
+function onAutoNextChange(): void {
+  gameSocket.setAutoNext(autoNext.value);
 }
 
 /**
@@ -224,5 +261,22 @@ onMounted(() => {
 .question {
   margin: 1rem 0;
   text-align: left;
+}
+.final-results {
+  margin-top: 2rem;
+}
+table {
+  width: 100%;
+  max-width: 400px;
+  margin: 0 auto;
+  border-collapse: collapse;
+}
+th, td {
+  padding: 0.5rem;
+  border: 1px solid #ccc;
+  text-align: left;
+}
+th {
+  background-color: #f0f0f0;
 }
 </style>

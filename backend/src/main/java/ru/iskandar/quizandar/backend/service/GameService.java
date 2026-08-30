@@ -180,8 +180,9 @@ public class GameService {
 	}
 
 	/**
-	 * Завершает текущий вопрос: отменяет таймер, отправляет результаты, и если
-	 * autoNext включён и есть ещё вопросы, планирует переход.
+	 * Завершает текущий вопрос: отменяет таймер, отправляет результаты, и если это
+	 * последний вопрос — отправляет финальные результаты, иначе планирует переход к
+	 * следующему (если autoNext).
 	 */
 	private void finishQuestionAndProceed() {
 		cancelQuestionTimeout();
@@ -193,8 +194,14 @@ public class GameService {
 		messagingTemplate.convertAndSend("/topic/game/scores", room.getScores());
 		messagingTemplate.convertAndSend("/topic/game/status", (Object) Map.of("active", false));
 
+		// Если это был последний вопрос — отправляем финальные результаты
+		if (room.getCurrentQuestionIndex() == room.getQuestions().size() - 1) {
+			sendFinalScores();
+			return;
+		}
+
 		// Если автопереход включён и есть ещё вопросы, планируем следующий
-		if (autoNext && room.getCurrentQuestionIndex() < room.getQuestions().size() - 1) {
+		if (autoNext) {
 			scheduleNextQuestion();
 		}
 	}

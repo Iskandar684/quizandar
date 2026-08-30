@@ -14,14 +14,19 @@
     </div>
 
     <!-- Экран вопроса -->
-    <div v-else-if="currentQuestion" class="question">
+    <div v-else-if="currentQuestion && !gameFinished" class="question">
       <h1>{{ currentQuestion.text }}</h1>
       <p v-if="currentQuestion.timeLimitSec > 0">
         Осталось: {{ timeLeft }} сек.
       </p>
       <div class="options">
-        <button v-for="opt in currentQuestion.options" :key="opt.id" @click="selectOption(opt.id)" :disabled="answered"
-          class="option-button">
+        <button
+          v-for="opt in currentQuestion.options"
+          :key="opt.id"
+          @click="selectOption(opt.id)"
+          :disabled="answered"
+          class="option-button"
+        >
           {{ opt.text }}
         </button>
       </div>
@@ -31,18 +36,41 @@
       </div>
     </div>
 
-    <!-- Ожидание -->
-    <div v-else class="waiting">
+    <!-- Экран ожидания -->
+    <div v-else-if="!gameFinished" class="waiting">
       <p>Ожидание вопроса...</p>
+    </div>
+
+    <!-- Финальный экран результатов -->
+    <div v-if="gameFinished && finalScores" class="final-results">
+      <h1>Игра завершена</h1>
+      <p>Ваше место: <strong>{{ myPlace }}</strong> ({{ myScore }} баллов)</p>
+      <table>
+        <thead>
+          <tr>
+            <th>Место</th>
+            <th>Игрок</th>
+            <th>Баллы</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="(entry, index) in sortedFinalScores" :key="entry[0]"
+              :class="{ 'highlight': entry[0] === player?.id }">
+            <td>{{ index + 1 }}</td>
+            <td>{{ entry[0] === player?.id ? 'Вы' : entry[0] }}</td>
+            <td>{{ entry[1] }}</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import axios from 'axios';
 import { gameSocket } from '@/services/gameSocket';
-import type { AnswerRecord, Player, Question } from '@/types/game';
+import type { AnswerRecord, Player, Question, ScoreMap } from '@/types/game';
 
 /** Имя игрока из формы */
 const name = ref('');
@@ -62,6 +90,30 @@ const answered = ref(false);
 const timeLeft = ref(0);
 /** Идентификатор таймера */
 let timer: number | undefined;
+/** Флаг завершения игры */
+const gameFinished = ref(false);
+/** Финальные очки */
+const finalScores = ref<ScoreMap | null>(null);
+
+/** Моё место в таблице */
+const myPlace = computed(() => {
+  if (!finalScores.value || !player.value) return null;
+  const sorted = sortedFinalScores.value;
+  const index = sorted.findIndex(([id]) => id === player.value!.id);
+  return index === -1 ? null : index + 1;
+});
+
+/** Мои баллы */
+const myScore = computed(() => {
+  if (!finalScores.value || !player.value) return 0;
+  return finalScores.value[player.value.id] ?? 0;
+});
+
+/** Отсортированный список финальных очков (по убыванию) */
+const sortedFinalScores = computed(() => {
+  if (!finalScores.value) return [];
+  return Object.entries(finalScores.value).sort((a, b) => b[1] - a[1]);
+});
 
 /**
  * Регистрация игрока через REST API.
@@ -75,14 +127,36 @@ async function joinGame(): Promise<void> {
       name: name.value.trim()
     });
     player.value = data;
-    // Сохраняем в localStorage
     localStorage.setItem('quizandar_player', JSON.stringify(data));
-    // Подключаем WebSocket и подписываемся на события
     setupSocket(data.id);
   } catch (e) {
     error.value = 'Не удалось подключиться. Попробуйте ещё раз.';
   } finally {
     isLoading.value = false;
+  }
+}
+
+/**
+ * Восстанавливает сессию игрока, если она была сохранена ранее.
+ */
+async function restoreOrJoin(): Promise<void> {
+  const saved = localStorage.getItem('quizandar_player');
+  if (!saved) return;
+
+  try {
+    const savedPlayer = JSON.parse(saved) as Player;
+    if (savedPlayer.id && savedPlayer.name) {
+      const { data } = await axios.post<Player>('/api/players/join', {
+        id: savedPlayer.id,
+        name: savedPlayer.name
+      });
+      player.value = data;
+      localStorage.setItem('quizandar_player', JSON.stringify(data));
+      setupSocket(data.id);
+    }
+  } catch (e) {
+    localStorage.removeItem('quizandar_player');
+    player.value = null;
   }
 }
 
@@ -94,11 +168,12 @@ function setupSocket(playerId: string): void {
   gameSocket.setPlayerId(playerId);
   gameSocket.connect(() => {
     console.log('WebSocket connected');
-    // Подписки настраиваем после подключения
     gameSocket.onQuestion((q) => {
       currentQuestion.value = q;
       answered.value = false;
       lastAnswer.value = null;
+      gameFinished.value = false;
+      finalScores.value = null;
       if (q.timeLimitSec > 0) {
         timeLeft.value = q.timeLimitSec;
         startTimer();
@@ -117,6 +192,17 @@ function setupSocket(playerId: string): void {
         timer = undefined;
       }
     });
+
+    gameSocket.onFinalScores((scores) => {
+      finalScores.value = scores;
+      gameFinished.value = true;
+      currentQuestion.value = null;
+      answered.value = false;
+      if (timer !== undefined) {
+        clearInterval(timer);
+        timer = undefined;
+      }
+    });
   });
 }
 
@@ -124,13 +210,12 @@ function setupSocket(playerId: string): void {
  * Запуск таймера обратного отсчёта.
  */
 function startTimer(): void {
-  if (timer) clearInterval(timer);
+  if (timer !== undefined) clearInterval(timer);
   timer = window.setInterval(() => {
     timeLeft.value--;
     if (timeLeft.value <= 0) {
       clearInterval(timer);
       timer = undefined;
-      // Если время вышло и не ответили — считаем, что ответа нет
       if (!answered.value) {
         answered.value = true;
       }
@@ -145,46 +230,15 @@ function startTimer(): void {
 function selectOption(optionId: string): void {
   if (answered.value) return;
   gameSocket.sendAnswer(optionId);
-  // Блокируем повторное нажатие
   answered.value = true;
 }
 
-// При монтировании проверяем, есть ли сохранённый игрок
 onMounted(() => {
   restoreOrJoin();
 });
 
-/**
- * Восстанавливает сессию игрока, если она была сохранена ранее.
- * Отправляет запрос на сервер для добавления в игровую комнату.
- */
-async function restoreOrJoin(): Promise<void> {
-  const saved = localStorage.getItem('quizandar_player');
-  if (!saved) return;
-
-  try {
-    const savedPlayer = JSON.parse(saved) as Player;
-    if (savedPlayer.id && savedPlayer.name) {
-      const { data } = await axios.post<Player>('/api/players/join', {
-        id: savedPlayer.id,
-        name: savedPlayer.name
-      });
-      player.value = data;
-      // Обновляем localStorage (имя могло измениться)
-      localStorage.setItem('quizandar_player', JSON.stringify(data));
-      setupSocket(data.id);
-    }
-  } catch (e) {
-    // Если сервер вернул ошибку (например, ID больше не существует),
-    // удаляем устаревшие данные и показываем форму регистрации.
-    localStorage.removeItem('quizandar_player');
-    player.value = null;
-  }
-}
-
-// При размонтировании отписываемся (опционально)
 onBeforeUnmount(() => {
-  // можно отключить WebSocket, если нужно
+  // при необходимости можно отключить WebSocket
 });
 </script>
 
@@ -248,5 +302,27 @@ onBeforeUnmount(() => {
 .waiting {
   font-size: 1.2rem;
   color: #666;
+}
+.final-results {
+  text-align: center;
+  padding: 2rem;
+}
+table {
+  width: 100%;
+  max-width: 400px;
+  margin: 1rem auto;
+  border-collapse: collapse;
+}
+th, td {
+  padding: 0.5rem;
+  border: 1px solid #ccc;
+  text-align: left;
+}
+th {
+  background-color: #f0f0f0;
+}
+.highlight {
+  background-color: #e0f2f1;
+  font-weight: bold;
 }
 </style>

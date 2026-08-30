@@ -170,6 +170,16 @@ class GameSocketService {
   setAutoNext(enabled: boolean): void {
     this.publish("/app/game/main/auto-next", { enabled });
   }
+  /**
+   * Подписывается на финальные результаты игры.
+   * @param handler — обработчик получения итоговых очков
+   * @returns функция отписки
+   */
+  onFinalScores(handler: (scores: ScoreMap) => void): () => void {
+    return this.subscribe("/topic/game/final-scores", (msg) =>
+      handler(JSON.parse(msg.body)),
+    );
+  }
 }
 
 // Экспортируем singleton
