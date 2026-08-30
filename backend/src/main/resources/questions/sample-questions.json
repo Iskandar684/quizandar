@@ -14,16 +14,14 @@
     },
     {
       "id": "q2",
-      "text": "Какие из этих языков относятся к JVM?",
-      "type": "MULTIPLE",
-      "timeLimitSec": 45,
+      "text": "Java — это компилируемый язык?",
+      "type": "TRUE_FALSE",
+      "timeLimitSec": 30,
       "options": [
-        { "id": "a", "text": "Java" },
-        { "id": "b", "text": "Python" },
-        { "id": "c", "text": "Kotlin" },
-        { "id": "d", "text": "Scala" }
+        { "id": "true", "text": "Да" },
+        { "id": "false", "text": "Нет" }
       ],
-      "correctOptionIds": ["a", "c", "d"]
+      "correctOptionIds": ["true"]
     }
   ]
 }

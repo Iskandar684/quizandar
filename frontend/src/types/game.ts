@@ -1,7 +1,8 @@
 /**
  * Тип вопроса: одиночный выбор, множественный выбор, истина/ложь.
  */
-export type QuestionType = 'SINGLE' | 'MULTIPLE' | 'TRUE_FALSE';
+export type QuestionType = 'SINGLE' | 'TRUE_FALSE';
+
 /**
  * Вариант ответа.
  */
