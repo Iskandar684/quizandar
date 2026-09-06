@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -38,17 +39,11 @@ public class QuestionController {
 		return ResponseEntity.ok(q);
 	}
 
-	/**
-	 * Импортирует вопросы из загруженного JSON-файла.
-	 *
-	 * @param file файл с вопросами
-	 * @return сообщение о результате
-	 */
 	@PostMapping("/import")
 	public ResponseEntity<Map<String, Object>> importQuestions(@RequestParam("file") MultipartFile file) {
 		try {
-			int count = questionService.importQuestions(file);
-			return ResponseEntity.ok(Map.of("status", "success", "importedCount", count));
+			Map<String, Object> result = questionService.importQuestions(file);
+			return ResponseEntity.ok(result);
 		} catch (IOException e) {
 			return ResponseEntity.internalServerError()
 					.body(Map.of("status", "error", "message", "Ошибка сохранения файла: " + e.getMessage()));
@@ -56,4 +51,36 @@ public class QuestionController {
 			return ResponseEntity.badRequest().body(Map.of("status", "error", "message", e.getMessage()));
 		}
 	}
+
+	/**
+	 * Возвращает список доступных файлов вопросов.
+	 *
+	 * @return список файлов с метаданными
+	 */
+	@GetMapping("/files")
+	public ResponseEntity<List<Map<String, Object>>> getQuestionFiles() {
+		return ResponseEntity.ok(questionService.getAvailableQuestionFiles());
+	}
+
+	/**
+	 * Выбирает активный файл вопросов.
+	 *
+	 * @param fileName имя файла (в теле запроса)
+	 * @return сообщение об успехе
+	 */
+	@PostMapping("/select")
+	public ResponseEntity<Map<String, Object>> selectQuestionsFile(@RequestBody Map<String, String> body) {
+		String fileName = body.get("fileName");
+		if (fileName == null || fileName.isBlank()) {
+			return ResponseEntity.badRequest().body(Map.of("status", "error", "message", "fileName не указан"));
+		}
+		try {
+			questionService.selectQuestionsFile(fileName);
+			return ResponseEntity.ok(Map.of("status", "success", "currentFile", fileName, "questionCount",
+					questionService.getAllQuestions().size()));
+		} catch (IllegalArgumentException e) {
+			return ResponseEntity.badRequest().body(Map.of("status", "error", "message", e.getMessage()));
+		}
+	}
+
 }

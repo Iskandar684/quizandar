@@ -23,16 +23,21 @@
 
     <!-- Импорт вопросов -->
     <div class="import-questions">
-      <input
-        type="file"
-        accept=".json"
-        ref="fileInput"
-        @change="onFileChange"
-      />
+      <input type="file" accept=".json" ref="fileInput" @change="onFileChange" />
       <button @click="importQuestions" :disabled="!selectedFile || importLoading">
         {{ importLoading ? 'Импорт...' : 'Импортировать' }}
       </button>
       <span v-if="importMessage" class="import-message">{{ importMessage }}</span>
+    </div>
+    <div class="select-questions">
+      <label for="questionFile">Тема вопросов:</label>
+      <select id="questionFile" v-model="selectedFile" @change="onSelectFile">
+        <option value="">-- Выберите файл --</option>
+        <option v-for="file in availableFiles" :key="file.fileName" :value="file.fileName">
+          {{ file.title }} ({{ file.questionCount }})
+        </option>
+      </select>
+      <span v-if="selectMessage" class="select-message">{{ selectMessage }}</span>
     </div>
 
     <!-- Управление игрой -->
@@ -101,6 +106,38 @@ const importMessage = ref('');
 /** Ссылка на input для сброса */
 const fileInput = ref<HTMLInputElement | null>(null);
 
+/** Список доступных файлов */
+const availableFiles = ref<Array<{ fileName: string; title: string; description: string; questionCount: number }>>([]);
+
+/** Сообщение о выборе */
+const selectMessage = ref('');
+
+/**
+ * Загружает список доступных файлов вопросов.
+ */
+async function fetchQuestionFiles(): Promise<void> {
+  try {
+    const { data } = await axios.get('/api/questions/files');
+    availableFiles.value = data;
+  } catch (e) {
+    console.error('Не удалось получить список файлов', e);
+  }
+}
+
+/**
+ * Обрабатывает выбор файла и отправляет команду на сервер.
+ */
+async function onSelectFile(): Promise<void> {
+  if (!selectedFile.value) return;
+  try {
+    const { data } = await axios.post('/api/questions/select', { fileName: selectedFile.value });
+    selectMessage.value = `Выбрана тема: ${selectedFile.value} (${data.questionCount} вопросов)`;
+  } catch (e) {
+    console.error('Ошибка выбора файла', e);
+    selectMessage.value = 'Ошибка выбора файла';
+  }
+}
+
 /**
  * Копирует ссылку на страницу игрока в буфер обмена.
  */
@@ -165,6 +202,7 @@ async function importQuestions(): Promise<void> {
       fileInput.value.value = '';
     }
     selectedFile.value = null;
+    fetchQuestionFiles();
   } catch (err) {
     console.error('Ошибка импорта:', err);
     importMessage.value = 'Ошибка импорта. Проверьте формат файла.';
@@ -249,19 +287,22 @@ onMounted(() => {
   text-align: center;
   padding: 2rem;
 }
+
 .qr-container {
   display: inline-block;
   padding: 1rem;
   background: white;
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
+
 .url-text {
   margin-top: 1rem;
   font-family: monospace;
   font-size: 1.1rem;
   word-break: break-all;
 }
+
 .copy-button {
   margin-top: 0.5rem;
   padding: 0.5rem 1rem;
@@ -273,32 +314,40 @@ onMounted(() => {
   color: white;
   transition: background-color 0.2s;
 }
+
 .copy-button:hover {
   background-color: #1976d2;
 }
+
 .auto-next-toggle {
   margin: 1rem 0;
 }
+
 .import-questions {
   margin: 1rem 0;
 }
+
 .import-questions input {
   margin-right: 0.5rem;
 }
+
 .import-message {
   margin-left: 0.5rem;
   color: #2e7d32;
   font-size: 0.9rem;
 }
+
 .controls {
   margin: 1rem 0;
 }
+
 .controls button {
   padding: 0.7rem 1.5rem;
   font-size: 1rem;
   margin: 0 0.5rem;
   cursor: pointer;
 }
+
 .question,
 .results,
 .final-message {
