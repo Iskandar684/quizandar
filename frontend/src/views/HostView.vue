@@ -121,6 +121,10 @@ async function fetchQuestionFiles(): Promise<void> {
     availableFiles.value = data;
   } catch (e) {
     console.error('Не удалось получить список файлов', e);
+    // Повторить через 3 секунды, если список пуст
+    setTimeout(() => {
+      if (availableFiles.value.length === 0) fetchQuestionFiles();
+    }, 3000);
   }
 }
 
@@ -193,10 +197,10 @@ async function importQuestions(): Promise<void> {
   try {
     const formData = new FormData();
     formData.append('file', selectedFile.value);
-    const { data } = await axios.post<{ importedCount: number }>('/api/questions/import', formData, {
+    const { data } = await axios.post<{ importedCount: number; totalCount: number }>('/api/questions/import', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
-    importMessage.value = `Импортировано вопросов: ${data.importedCount}. Начните новую игру.`;
+    importMessage.value = `Импортировано: ${data.importedCount}. Всего вопросов: ${data.totalCount}. Начните новую игру.`;
     // Сбрасываем input
     if (fileInput.value) {
       fileInput.value.value = '';
@@ -279,6 +283,7 @@ function getPlayerName(playerId: string): string {
 
 onMounted(() => {
   setupSocket();
+  fetchQuestionFiles();
 });
 </script>
 
