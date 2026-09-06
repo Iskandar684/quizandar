@@ -48,6 +48,8 @@
 
     <!-- Текущий вопрос -->
     <div v-if="currentQuestion" class="question">
+      <p class="question-progress">Вопрос {{ currentQuestion.questionNumber }} из {{ currentQuestion.totalQuestions }}
+      </p>
       <h2>{{ currentQuestion.text }}</h2>
       <p>Тип: {{ currentQuestion.type }} | Время: {{ currentQuestion.timeLimitSec }} сек.</p>
     </div>
@@ -357,5 +359,11 @@ onMounted(() => {
 .results,
 .final-message {
   margin-top: 1rem;
+}
+
+.question-progress {
+  font-size: 0.9rem;
+  color: #666;
+  margin-bottom: 0.5rem;
 }
 </style>

@@ -262,7 +262,8 @@ public class GameService {
 	 */
 	private QuestionDto toDto(Question q) {
 		return QuestionDto.builder().id(q.getId()).text(q.getText()).type(q.getType()).timeLimitSec(q.getTimeLimitSec())
-				.options(q.getOptions()).build();
+				.options(q.getOptions()).questionNumber(room.getCurrentQuestionIndex() + 1) // +1, чтобы отображать с 1
+				.totalQuestions(room.getQuestions().size()).build();
 	}
 
 	/**
@@ -289,5 +290,7 @@ public class GameService {
 		private QuestionType _type;
 		private int _timeLimitSec;
 		private List<Option> _options;
+		private int _questionNumber;
+		private int _totalQuestions;
 	}
 }

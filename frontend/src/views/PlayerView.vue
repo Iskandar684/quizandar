@@ -15,6 +15,8 @@
 
     <!-- Экран вопроса -->
     <div v-else-if="currentQuestion && !gameFinished" class="question">
+      <p class="question-progress">Вопрос {{ currentQuestion.questionNumber }} из {{ currentQuestion.totalQuestions }}
+      </p>
       <h1>{{ currentQuestion.text }}</h1>
       <p v-if="currentQuestion.timeLimitSec > 0">
         Осталось: {{ timeLeft }} сек.

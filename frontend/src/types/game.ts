@@ -27,6 +27,10 @@ export interface Question {
   timeLimitSec: number;
   /** Список вариантов */
   options: Option[];
+    /** Номер текущего вопроса (начиная с 1) */
+  questionNumber: number;
+  /** Общее количество вопросов */
+  totalQuestions: number;
 }
 
 /**
