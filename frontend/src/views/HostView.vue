@@ -4,7 +4,7 @@
 
     <!-- QR-код -->
     <div class="qr-container">
-      <qrcode-vue :value="playerUrl" :size="300" level="M" />
+      <qrcode-vue :value="playerUrl" :size="250" level="M" />
     </div>
     <p class="url-text">{{ playerUrl }}</p>
 
@@ -21,18 +21,24 @@
       </label>
     </div>
 
+    <!-- Импорт вопросов -->
+    <div class="import-questions">
+      <input
+        type="file"
+        accept=".json"
+        ref="fileInput"
+        @change="onFileChange"
+      />
+      <button @click="importQuestions" :disabled="!selectedFile || importLoading">
+        {{ importLoading ? 'Импорт...' : 'Импортировать' }}
+      </button>
+      <span v-if="importMessage" class="import-message">{{ importMessage }}</span>
+    </div>
+
     <!-- Управление игрой -->
     <div class="controls">
       <button @click="startGame">Начать игру</button>
       <button @click="nextQuestion" :disabled="!gameStarted">Следующий вопрос</button>
-    </div>
-
-    <!-- Список игроков -->
-    <div v-if="players.length" class="players">
-      <h2>Игроки:</h2>
-      <ul>
-        <li v-for="p in players" :key="p.id">{{ p.name }}</li>
-      </ul>
     </div>
 
     <!-- Текущий вопрос -->
@@ -51,25 +57,9 @@
       </ul>
     </div>
 
-    <!-- Финальная таблица результатов -->
-    <div v-if="gameFinished && finalScores" class="final-results">
-      <h2>Итоговые результаты</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>Место</th>
-            <th>Игрок</th>
-            <th>Баллы</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="(entry, index) in sortedFinalScores" :key="entry[0]">
-            <td>{{ index + 1 }}</td>
-            <td>{{ getPlayerName(entry[0]) }}</td>
-            <td>{{ entry[1] }}</td>
-          </tr>
-        </tbody>
-      </table>
+    <!-- Финальное сообщение -->
+    <div v-if="gameFinished" class="final-message">
+      <h2>Игра завершена!</h2>
     </div>
   </div>
 </template>
@@ -77,6 +67,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import QrcodeVue from 'qrcode.vue';
+import axios from 'axios';
 import { gameSocket } from '@/services/gameSocket';
 import type { AnswerRecord, Player, Question, ScoreMap } from '@/types/game';
 
@@ -89,22 +80,26 @@ const players = ref<Player[]>([]);
 const currentQuestion = ref<Question | null>(null);
 /** Результаты текущего вопроса */
 const results = ref<AnswerRecord[]>([]);
+/** Текущие очки (не используются, оставлено для будущего) */
+const scores = ref<ScoreMap | null>(null);
 /** Флаг, что игра началась */
 const gameStarted = ref(false);
 /** Флаг, что игра завершена */
 const gameFinished = ref(false);
-/** Финальные очки */
-const finalScores = ref<ScoreMap | null>(null);
 /** Текст на кнопке копирования */
 const copyButtonText = ref('Копировать ссылку');
 /** Флаг автоматического перехода */
 const autoNext = ref(true);
 
-/** Отсортированный список финальных очков (по убыванию) */
-const sortedFinalScores = computed(() => {
-  if (!finalScores.value) return [];
-  return Object.entries(finalScores.value).sort((a, b) => b[1] - a[1]);
-});
+// === Импорт вопросов ===
+/** Выбранный файл */
+const selectedFile = ref<File | null>(null);
+/** Флаг загрузки при импорте */
+const importLoading = ref(false);
+/** Сообщение об импорте */
+const importMessage = ref('');
+/** Ссылка на input для сброса */
+const fileInput = ref<HTMLInputElement | null>(null);
 
 /**
  * Копирует ссылку на страницу игрока в буфер обмена.
@@ -139,6 +134,46 @@ async function copyLink(): Promise<void> {
 }
 
 /**
+ * Обрабатывает выбор файла в input.
+ */
+function onFileChange(event: Event): void {
+  const input = event.target as HTMLInputElement;
+  if (input.files && input.files.length > 0) {
+    selectedFile.value = input.files[0];
+  } else {
+    selectedFile.value = null;
+  }
+  importMessage.value = '';
+}
+
+/**
+ * Отправляет выбранный файл на сервер для импорта вопросов.
+ */
+async function importQuestions(): Promise<void> {
+  if (!selectedFile.value) return;
+  importLoading.value = true;
+  importMessage.value = '';
+  try {
+    const formData = new FormData();
+    formData.append('file', selectedFile.value);
+    const { data } = await axios.post<{ importedCount: number }>('/api/questions/import', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    importMessage.value = `Импортировано вопросов: ${data.importedCount}. Начните новую игру.`;
+    // Сбрасываем input
+    if (fileInput.value) {
+      fileInput.value.value = '';
+    }
+    selectedFile.value = null;
+  } catch (err) {
+    console.error('Ошибка импорта:', err);
+    importMessage.value = 'Ошибка импорта. Проверьте формат файла.';
+  } finally {
+    importLoading.value = false;
+  }
+}
+
+/**
  * Подключение к WebSocket и подписка на события.
  */
 function setupSocket(): void {
@@ -153,19 +188,18 @@ function setupSocket(): void {
       results.value = [];
       gameStarted.value = true;
       gameFinished.value = false;
-      finalScores.value = null;
     });
 
     gameSocket.onResults((res) => {
       results.value = res;
     });
 
-    gameSocket.onScores((scores) => {
-      console.log('Scores:', scores);
+    gameSocket.onScores((newScores) => {
+      scores.value = newScores;
     });
 
-    gameSocket.onFinalScores((scores) => {
-      finalScores.value = scores;
+    gameSocket.onFinalScores((finalScores) => {
+      scores.value = finalScores;
       gameFinished.value = true;
       currentQuestion.value = null;
       results.value = [];
@@ -186,6 +220,7 @@ function onAutoNextChange(): void {
 function startGame(): void {
   gameSocket.startGame();
   gameStarted.value = true;
+  gameFinished.value = false;
 }
 
 /**
@@ -214,21 +249,19 @@ onMounted(() => {
   text-align: center;
   padding: 2rem;
 }
-
 .qr-container {
   display: inline-block;
   padding: 1rem;
   background: white;
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
-
 .url-text {
   margin-top: 1rem;
   font-family: monospace;
   font-size: 1.1rem;
+  word-break: break-all;
 }
-
 .copy-button {
   margin-top: 0.5rem;
   padding: 0.5rem 1rem;
@@ -240,43 +273,35 @@ onMounted(() => {
   color: white;
   transition: background-color 0.2s;
 }
-
 .copy-button:hover {
   background-color: #1976d2;
 }
-
+.auto-next-toggle {
+  margin: 1rem 0;
+}
+.import-questions {
+  margin: 1rem 0;
+}
+.import-questions input {
+  margin-right: 0.5rem;
+}
+.import-message {
+  margin-left: 0.5rem;
+  color: #2e7d32;
+  font-size: 0.9rem;
+}
 .controls {
   margin: 1rem 0;
 }
-
 .controls button {
   padding: 0.7rem 1.5rem;
   font-size: 1rem;
   margin: 0 0.5rem;
   cursor: pointer;
 }
-
-.players,
+.question,
 .results,
-.question {
-  margin: 1rem 0;
-  text-align: left;
-}
-.final-results {
-  margin-top: 2rem;
-}
-table {
-  width: 100%;
-  max-width: 400px;
-  margin: 0 auto;
-  border-collapse: collapse;
-}
-th, td {
-  padding: 0.5rem;
-  border: 1px solid #ccc;
-  text-align: left;
-}
-th {
-  background-color: #f0f0f0;
+.final-message {
+  margin-top: 1rem;
 }
 </style>
