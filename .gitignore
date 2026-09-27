@@ -1,5 +1,7 @@
+quizandar-portable
 # ===== Backend (Spring Boot / Maven / Eclipse) =====
 backend/target/
+backend/src/main/resources/static/
 backend/.classpath
 backend/.project
 backend/.settings/
