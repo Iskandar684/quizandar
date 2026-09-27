@@ -16,15 +16,15 @@ echo JRE:          %JAVA%
 echo JAR:          %JAR%
 echo Questions:    %QUESTIONS_DIR%
 echo.
-echo Host page:    http://%IP%:8080/
-echo Player page:  http://%IP%:8080/#/player
+echo Host page:    http://%IP%:8765/
+echo Player page:  http://%IP%:8765/#/player
 echo ============================================
 echo.
 
 REM --- Open host page in browser after 15s (in background) ---
-start "" powershell -NoProfile -WindowStyle Hidden -Command "Start-Sleep -Seconds 15; Start-Process 'http://%IP%:8080/'"
+start "" powershell -NoProfile -WindowStyle Hidden -Command "Start-Sleep -Seconds 15; Start-Process 'http://%IP%:8765/'"
 
 REM --- Start server (foreground) ---
-"%JAVA%" -Dquizandar.questions.directory="%QUESTIONS_DIR%" -jar "%JAR%" --server.port=8080
+"%JAVA%" -Dquizandar.questions.directory="%QUESTIONS_DIR%" -jar "%JAR%" --server.port=8765
 
 pause

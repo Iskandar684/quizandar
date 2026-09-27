@@ -118,12 +118,17 @@ for /d %%D in ("%PORTABLE_DIR%\jdk-*" "%PORTABLE_DIR%\OpenJDK*") do (
 if not exist "%PORTABLE_DIR%\jre\bin\java.exe" (
     echo WARNING: Could not find jre\bin\java.exe. Check extracted folder name.
 )
+if not exist "%TEMPLATE_DIR%\stop.bat" (
+    echo ERROR: %TEMPLATE_DIR%\stop.bat not found.
+    exit /b 1
+)
 
 REM --- Copy portable launcher files ---
 echo.
 echo [6/6] Copying portable launcher files...
 copy /Y "%TEMPLATE_DIR%\start.bat" "%PORTABLE_DIR%\start.bat" >nul
 copy /Y "%TEMPLATE_DIR%\README.txt" "%PORTABLE_DIR%\README.txt" >nul
+copy /Y "%TEMPLATE_DIR%\stop.bat" "%PORTABLE_DIR%\stop.bat" >nul
 
 echo.
 echo ============================================================

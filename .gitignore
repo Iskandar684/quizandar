@@ -29,6 +29,8 @@ frontend/npm-debug.log*
 frontend/yarn-debug.log*
 frontend/yarn-error.log*
 frontend/pnpm-debug.log*
+# TypeScript incremental build
+*.tsbuildinfo
 
 # ===== IDE (Visual Studio Code, IntelliJ IDEA) =====
 .idea/
