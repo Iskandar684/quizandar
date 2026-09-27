@@ -130,6 +130,16 @@ copy /Y "%TEMPLATE_DIR%\start.bat" "%PORTABLE_DIR%\start.bat" >nul
 copy /Y "%TEMPLATE_DIR%\README.txt" "%PORTABLE_DIR%\README.txt" >nul
 copy /Y "%TEMPLATE_DIR%\stop.bat" "%PORTABLE_DIR%\stop.bat" >nul
 
+REM --- Copy icons and shortcuts script ---
+if not exist "%PORTABLE_DIR%\icons" mkdir "%PORTABLE_DIR%\icons"
+copy /Y "%TEMPLATE_DIR%\icons\play.ico" "%PORTABLE_DIR%\icons\play.ico" >nul
+copy /Y "%TEMPLATE_DIR%\icons\stop.ico" "%PORTABLE_DIR%\icons\stop.ico" >nul
+copy /Y "%TEMPLATE_DIR%\make-shortcuts.bat" "%PORTABLE_DIR%\make-shortcuts.bat" >nul
+
+REM --- Create shortcuts (icons) ---
+echo Creating shortcuts...
+call "%PORTABLE_DIR%\make-shortcuts.bat"
+
 echo.
 echo ============================================================
 echo  Done! Portable build is in folder: %PORTABLE_DIR%
