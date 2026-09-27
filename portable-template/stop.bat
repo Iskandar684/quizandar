@@ -2,13 +2,8 @@
 setlocal
 chcp 65001 >nul
 
-REM ============================================================
-REM  Stop Quizandar (portable)
-REM ============================================================
-
 echo Stopping Quizandar...
 
-REM --- Find process listening on port 8765 ---
 set "FOUND=0"
 for /f "tokens=5" %%P in ('netstat -ano ^| findstr ":8765" ^| findstr "LISTENING"') do (
     echo Killing process with PID %%P...

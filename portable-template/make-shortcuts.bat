@@ -1,14 +1,11 @@
 @echo off
 setlocal
+set "APPDIR=%~dp0"
+for %%I in ("%APPDIR%..") do set "ROOT=%%~fI"
 
-set "ROOT=%~dp0"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$s=New-Object -ComObject WScript.Shell; $l=$s.CreateShortcut('%ROOT%\start.lnk'); $l.TargetPath='%APPDIR%start.bat'; $l.WorkingDirectory='%APPDIR%'; $l.IconLocation='%APPDIR%icons\play.ico'; $l.Save()"
 
-REM --- Shortcut: Start ---
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$s=New-Object -ComObject WScript.Shell; $l=$s.CreateShortcut('%ROOT%start.lnk'); $l.TargetPath='%ROOT%start.bat'; $l.WorkingDirectory='%ROOT%'; $l.IconLocation='%ROOT%icons\play.ico'; $l.Description='Start Quizandar'; $l.Save()"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$s=New-Object -ComObject WScript.Shell; $l=$s.CreateShortcut('%ROOT%\stop.lnk'); $l.TargetPath='%APPDIR%stop.bat'; $l.WorkingDirectory='%APPDIR%'; $l.IconLocation='%APPDIR%icons\stop.ico'; $l.Save()"
 
-REM --- Shortcut: Stop ---
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$s=New-Object -ComObject WScript.Shell; $l=$s.CreateShortcut('%ROOT%stop.lnk'); $l.TargetPath='%ROOT%stop.bat'; $l.WorkingDirectory='%ROOT%'; $l.IconLocation='%ROOT%icons\stop.ico'; $l.Description='Stop Quizandar'; $l.Save()"
-
-echo Shortcuts created.
-pause
+echo Shortcuts created in %ROOT%
 endlocal
